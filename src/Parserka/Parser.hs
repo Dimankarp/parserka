@@ -6,18 +6,24 @@ import Control.Applicative (Alternative)
 import Data.Char (isAlpha, isDigit)
 import GHC.Base (Alternative (..))
 
+data Position = Position {col :: Int, line :: Int}
+
+data Message i = Message {pos :: Position, unexpected :: i, expected :: [i]}
+
+data State i = State {input :: [i], curPos :: Position}
+
+data Reply a i = Ok a (State i) (Message i) | Error (Message i) deriving (Show)
+
 data Consumed a i = Consumed (Reply a i) | Empty (Reply a i) deriving (Show)
 
-data Reply a i = Ok a [i] | Error deriving (Show)
-
 newtype Parser i a = Parser
-  {runParser :: [i] -> Consumed a i}
+  {runParser :: State i -> Consumed a i}
 
 instance Functor (Parser i) where
   fmap f m = m >>= return . f
 
 instance Applicative (Parser i) where
-  pure x = Parser $ \i -> Empty (Ok x i)
+  pure x = Parser $ \state -> Empty (Ok x state (Message pos [] []))
   m1 <*> m2 = m1 >>= (\x1 -> m2 >>= (\x2 -> return (x1 x2)))
 
 instance Monad (Parser i) where
@@ -88,4 +94,11 @@ try p = Parser $
     Consumed Error -> Empty Error
     other -> other
 
-identificator = try (do idPart; stop) <|> (do idPart; identificator)
+many1 :: Parser i a -> Parser i [a]
+many1 p =
+  do
+    x <- p
+    xs <- (many1 p <|> return [])
+    return (x : xs)
+
+identificator = many1 (letter <|> digit <|> char '_')
