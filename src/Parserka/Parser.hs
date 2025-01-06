@@ -1,25 +1,26 @@
-{-# LANGUAGE InstanceSigs #-}
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
 module Parserka.Parser (char) where
 
+import Control.Applicative (Alternative)
 import Data.Char (isAlpha, isDigit)
+import GHC.Base (Alternative (..))
+
+data Consumed a i = Consumed (Reply a i) | Empty (Reply a i) deriving (Show)
+
+data Reply a i = Ok a [i] | Error deriving (Show)
 
 newtype Parser i a = Parser
-  { runParser :: [i] -> Consumed a i
-  }
+  {runParser :: [i] -> Consumed a i}
 
 instance Functor (Parser i) where
-  fmap :: (a -> b) -> Parser i a -> Parser i b
   fmap f m = m >>= return . f
 
 instance Applicative (Parser i) where
   pure x = Parser $ \i -> Empty (Ok x i)
-
   m1 <*> m2 = m1 >>= (\x1 -> m2 >>= (\x2 -> return (x1 x2)))
 
 instance Monad (Parser i) where
-  return = pure
   p >>= f =
     Parser
       ( \i -> case (runParser p i) of
@@ -36,10 +37,19 @@ instance Monad (Parser i) where
                   Error -> Error
               )
       )
+  return = pure
 
-data Consumed a i = Consumed (Reply a i) | Empty (Reply a i) deriving (Show)
-
-data Reply a i = Ok a [i] | Error deriving (Show)
+instance Alternative (Parser i) where
+  p <|> q =
+    Parser
+      ( \i -> case (runParser p i) of
+          Empty Error -> (runParser q i)
+          Empty ok -> case (runParser q i) of
+            Empty _ -> Empty ok
+            consumed -> consumed
+          consumed -> consumed
+      )
+  empty = Parser $ \_ -> Empty Error
 
 satisfy :: (i -> Bool) -> Parser i i
 satisfy test = Parser $ \i -> case (i) of
@@ -57,25 +67,16 @@ letter = satisfy isAlpha
 digit :: Parser Char Char
 digit = satisfy isDigit
 
-(<|>) :: Parser i a -> Parser i a -> Parser i a
-p <|> q =
-  Parser
-    ( \i -> case (runParser p i) of
-        Empty Error -> (runParser q i)
-        Empty ok -> case (runParser q i) of
-          Empty _ -> Empty ok
-          consumed -> consumed
-        consumed -> consumed
-    )
-
 string :: (Eq i) => [i] -> Parser i ()
 string [] = return ()
 string (i : is) = do
   char i
   string is
 
+idPart :: Parser Char Char
 idPart = letter <|> digit
 
+stop :: Parser i ()
 stop = Parser $ go
   where
     go [] = Empty (Ok () [])
