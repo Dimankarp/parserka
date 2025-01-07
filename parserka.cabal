@@ -17,7 +17,8 @@ extra-source-files:  README.md
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Parserka.Parser
+  exposed-modules:     Parserka.Parser,
+                       Parserka.YAML
   build-depends:       base >= 4.7 && < 5
   default-language:    Haskell2010
   ghc-options:         -Wall

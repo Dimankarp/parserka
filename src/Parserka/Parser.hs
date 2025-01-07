@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
-module Parserka.Parser (char) where
+module Parserka.Parser (Parser, Position, curPos, char, string, getParserState, (<?>), excluding, many1, many0, (<|>), try, runParserOnString, optional, stop) where
 
 import Control.Applicative (Alternative)
 import Data.Char (isAlpha, isDigit)
@@ -77,15 +77,13 @@ p <?> label = Parser $
   where
     expect (Message msgPos unexp _) msgExp = (Message msgPos unexp [msgExp])
 
--- updateParserState :: (State i -> State i) -> Parser i (State i)
--- updateParserState f =
---   Parser $ \s -> Empty (Ok s' s' (Message $ curPos s [] []))
---   where
---     s' = f s
+updateParserState :: (State i -> State i) -> Parser i (State i)
+updateParserState f =
+  Parser $ \s -> let s' = f s in Empty (Ok s' s' (Message (curPos s) [] []))
 
--- getParserState = updateParserState id
+getParserState = updateParserState id
 
--- setParserState st = updateParserState (const st)
+setParserState st = updateParserState (const st)
 
 mergeOk :: a -> State i -> Message -> Message -> Consumed i a
 mergeOk x st msg1 msg2 = Empty (Ok x st (merge msg1 msg2))
@@ -119,6 +117,9 @@ char ch =
     (== ch)
     nextCharPos
 
+excluding :: [Char] -> Parser Char Char
+excluding chs = satisfy (not . flip elem chs) nextCharPos
+
 letter :: Parser Char Char
 letter = satisfy isAlpha nextCharPos <?> "letter"
 
@@ -148,9 +149,19 @@ stop = Parser $ go
 
 try :: Parser i a -> Parser i a
 try p = Parser $
-  \i -> case (runParser p i) of
+  \state -> case (runParser p state) of
     Consumed err -> Empty err
     other -> other
+
+optional :: Parser i a -> Parser i (Maybe a)
+optional p = Parser $
+  \state -> case (runParser p state) of
+    Empty err -> case (err) of
+      Error msg -> Empty (Ok Nothing state msg)
+      Ok x state' msg -> Empty (Ok (Just x) state' msg)
+    Consumed err -> case (err) of
+      Error msg -> Consumed (Error msg)
+      Ok x state' msg -> Consumed (Ok (Just x) state' msg)
 
 many1 :: Parser i a -> Parser i [a]
 many1 p =
@@ -159,8 +170,9 @@ many1 p =
     xs <- (many1 p <|> return [])
     return (x : xs)
 
-identificator = do many1 (letter <|> digit <|> char '_'); stop
+many0 p = try (many1 p) <|> return []
 
+identificator = do many1 (letter <|> digit <|> char '_'); stop
 
 runParserOnString :: Parser Char a -> String -> Consumed Char a
 runParserOnString p s = runParser p (State s (Position 0 0))

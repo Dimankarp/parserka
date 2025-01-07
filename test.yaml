@@ -1,0 +1,19 @@
+# all markdown
+MD013: false # Line length
+MD007: # Unordered list indentation
+  indent: 4
+MD051: false # Link fragments should be valid
+
+# slides
+MD035: false # Horizontal rule style
+MD033: 
+  - "br"
+  - "div"
+  # allowed_elements: ["br", "div"]
+
+# need to be removed
+MD045: false # Images should have alternate text (alt text)
+MD025: false # Multiple top-level headings in the same document
+MD011: false # Reversed link syntax conflix with maths.
+
+MD041: false # Required for course note
