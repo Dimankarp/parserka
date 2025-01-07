@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
-module Parserka.Parser (Parser, Position, curPos, char, string, getParserState, (<?>), excluding, many1, many0, (<|>), try, runParserOnString, optional, stop) where
+module Parserka.Parser (Parser, Position, curPos, char, many1, string, letter, digit, getParserState, (<?>), excluding, many1, many0, (<|>), try, runParserOnString, optional, stop) where
 
 import Control.Applicative (Alternative)
 import Data.Char (isAlpha, isDigit)
@@ -175,4 +175,4 @@ many0 p = try (many1 p) <|> return []
 identificator = do many1 (letter <|> digit <|> char '_'); stop
 
 runParserOnString :: Parser Char a -> String -> Consumed Char a
-runParserOnString p s = runParser p (State s (Position 0 0))
+runParserOnString p s = runParser p (State s (Position 0 1))

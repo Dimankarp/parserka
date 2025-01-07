@@ -2,7 +2,7 @@
 
 module Parserka.YAML (yamlTokens) where
 
-import Parserka.Parser (Parser, Position, char, curPos, excluding, getParserState, many0, optional, stop, string, try, (<?>), (<|>))
+import Parserka.Parser (Parser, Position, char, curPos, digit, excluding, getParserState, letter, many0, many1, optional, stop, string, try, (<?>), (<|>))
 
 -- Lexer
 
@@ -24,7 +24,43 @@ fileStart =
       return (FileStartToken (curPos state))
   )
 
--- contentLine = keyValue <|> listItem
+keyName :: Parser Char YAMLToken
+keyName = do
+  state <- getParserState
+  name <- many1 (letter <|> digit) <?> "key name"
+  return (KeyToken (curPos state) name)
+
+scalar :: Parser Char YAMLToken
+scalar = do
+  state <- getParserState
+  name <- many1 (letter <|> digit) <?> "scalar name"
+  return (DoubleQuoteString (curPos state) name) -- TODO:
+
+keyValue :: Parser Char [YAMLToken]
+keyValue = do
+  key <- keyName <?> "KEY:value"
+  char ':'
+  spaces
+  val <- (optional (scalar) <?> "key:VALUE")
+  return
+    ( [key] ++ case val of
+        Just value -> [value]
+        Nothing -> []
+    )
+
+fileStartLine :: Parser Char YAMLToken
+fileStartLine = do
+  token <- fileStart
+  lineEnd
+  return token
+
+contentLine :: Parser Char [YAMLToken]
+contentLine =
+  do
+    spaces
+    tokens <- (keyValue) --- <|> listItem)
+    lineEnd
+    return tokens
 
 comment :: Parser Char [Char]
 comment = do char '#'; many0 (excluding ['\n'])
@@ -38,8 +74,14 @@ spaces = many0 (char ' ') <?> "possible spaces"
 lineEnd :: Parser Char ()
 lineEnd = do spaces; optional comment; (nl <|> stop)
 
-yamlTokens :: Parser Char YAMLToken
+yamlTokens :: Parser Char [YAMLToken]
 yamlTokens = do
-  st <- fileStart
-  lineEnd
-  return st
+  tokens <-
+    many1
+      ( do
+          st <- fileStartLine
+          contents <- many1 contentLine
+          return ([st] ++ (concat contents))
+      )
+  stop
+  return $ concat tokens
