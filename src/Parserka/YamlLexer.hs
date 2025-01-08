@@ -30,13 +30,66 @@ keyName = do
   name <- many1 (letter <|> digit)
   return (KeyToken (curPos state) name)
 
--- scalarBool =
+scalarBool :: Parser Char YAMLToken
+scalarBool = do
+  state <- getParserState
+  ( ( do
+        (string "true" <|> string "True")
+        return $ BoolToken (curPos state) True
+    )
+      <|> ( do
+              (string "false" <|> string "False")
+              return $ BoolToken (curPos state) False
+          )
+    )
+    <?> "boolean"
+
+scalarInteger :: Parser Char YAMLToken
+scalarInteger =
+  do
+    state <- getParserState
+    minus <- optional (char '-' <|> char '+')
+    digits <- many1 digit
+    return $
+      IntegerToken
+        (curPos state)
+        ( ( read $
+              (maybe [] (\m -> [m]) minus) ++ digits
+          ) ::
+            Integer
+        )
+    <?> "integer number"
+
+scalarDouble =
+  do
+    state <- getParserState
+    minus <- optional (char '-' <|> char '+')
+    digits1 <- many1 digit
+    char '.'
+    digits2 <- many1 digit
+    return $
+      DoubleToken
+        (curPos state)
+        ( ( read $
+              (maybe [] (\m -> if m == '-' then [m] else []) minus) ++ digits1 ++ ['.'] ++ digits2
+          ) ::
+            Double
+        )
+    <?> "floating-point number"
+
+scalarDQuoted :: Parser Char YAMLToken
+scalarDQuoted =
+  do
+    state <- getParserState
+    char '"'
+    str <- many0 $ excluding ['"']
+    char '"'
+    return $ DoubleQuoteString (curPos state) str
+    <?> "double qutoed string"
 
 scalar :: Parser Char YAMLToken
-scalar = do
-  state <- getParserState
-  name <- many1 (letter <|> digit)
-  return (DoubleQuoteString (curPos state) name) -- TODO:
+scalar =
+  scalarDQuoted <|> scalarBool <|> try scalarDouble <|> scalarInteger
 
 keyValue :: Parser Char [YAMLToken]
 keyValue = do

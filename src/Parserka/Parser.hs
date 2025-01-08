@@ -135,6 +135,7 @@ string' (i : is) =
       string is
   )
 
+
 idPart :: Parser Char Char
 idPart = letter <|> digit
 
@@ -198,6 +199,8 @@ many1 p =
 
 many0 :: Parser i a -> Parser i [a]
 many0 p = try (many1 p) <|> return []
+
+
 
 identificator :: Parser Char ()
 identificator = do many1 (letter <|> digit <|> char '_'); stop
