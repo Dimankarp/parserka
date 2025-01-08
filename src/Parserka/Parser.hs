@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
-module Parserka.Parser (Parser, Position, curPos, manyBreak, char, many1, string, letter, digit, getParserState, (<?>), excluding, many1, many0, (<|>), try, runParserOnString, optional, stop) where
+module Parserka.Parser (Parser, Position, curPos, ignore, manyAll, manyBreak, char, many1, string, letter, digit, getParserState, (<?>), excluding, many1, many0, (<|>), try, runParserOnString, optional, stop) where
 
 import Control.Applicative (Alternative)
 import Data.Char (isAlpha, isDigit)
@@ -32,16 +32,12 @@ instance Monad (Parser i) where
       ( \state -> case (runParser p state) of
           Empty r1 ->
             case (r1) of
-              Ok x state1 msg -> case (runParser (f x) state1) of
-                Empty r2 -> case r2 of
-                  Ok x' state2 msg2 -> mergeOk x' state2 msg msg2
-                  Error msg2 -> mergeError msg msg2
-                other -> other
+              Ok x state1 _ ->(runParser (f x) state1) 
               Error msg -> Empty (Error msg)
           Consumed r1 ->
             Consumed
               ( case (r1) of
-                  Ok x rest msg -> case (runParser (f x) rest) of
+                  Ok x state1 _ -> case (runParser (f x) state1) of
                     Consumed r2 -> r2
                     Empty r2 -> r2
                   Error msg -> Error msg
@@ -81,8 +77,10 @@ updateParserState :: (State i -> State i) -> Parser i (State i)
 updateParserState f =
   Parser $ \s -> let s' = f s in Empty (Ok s' s' (Message (curPos s) [] []))
 
+getParserState :: Parser i (State i)
 getParserState = updateParserState id
 
+setParserState :: State i -> Parser i (State i)
 setParserState st = updateParserState (const st)
 
 mergeOk :: a -> State i -> Message -> Message -> Consumed i a
@@ -127,7 +125,7 @@ digit :: Parser Char Char
 digit = satisfy isDigit nextCharPos <?> "digit"
 
 string :: [Char] -> Parser Char ()
-string s = string' s <?> "string"
+string s = string' s <?> (show s)
 
 string' :: [Char] -> Parser Char ()
 string' [] = return ()
@@ -151,11 +149,35 @@ manyBreak :: Parser i a
 manyBreak = Parser $
   \state -> Empty (Error (Message (curPos state) "break" []))
 
+ignore :: Parser i a -> Parser i a
+ignore p = Parser $
+  \state -> case (runParser p state) of
+    Consumed rep -> Empty rep
+    other -> other
+
 try :: Parser i a -> Parser i a
 try p = Parser $
   \state -> case (runParser p state) of
     Consumed (Error err) -> Empty (Error err)
     other -> other
+
+error :: String -> Parser i a
+error s = Parser $ \state -> Empty (Error (Message (curPos state) s []))
+
+isInputEnd :: Parser i Bool
+isInputEnd =
+  Parser $ \s -> Empty (Ok ((length $ input s) == 0) s (Message (curPos s) [] []))
+
+manyAll :: Parser i a -> Parser i [a]
+manyAll p =
+  do
+    inputEnd <- isInputEnd
+    if inputEnd
+      then return []
+      else do
+        x <- p
+        xs <- manyAll p
+        return (x : xs)
 
 optional :: Parser i a -> Parser i (Maybe a)
 optional p = Parser $
@@ -177,6 +199,7 @@ many1 p =
 many0 :: Parser i a -> Parser i [a]
 many0 p = try (many1 p) <|> return []
 
+identificator :: Parser Char ()
 identificator = do many1 (letter <|> digit <|> char '_'); stop
 
 runParserOnString :: Parser Char a -> String -> Consumed Char a

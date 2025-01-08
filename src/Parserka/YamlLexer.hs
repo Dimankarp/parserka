@@ -2,7 +2,7 @@
 
 module Parserka.YamlLexer (yamlTokens) where
 
-import Parserka.Parser (Parser, Position, char, curPos, digit, excluding, getParserState, letter, many0, many1, manyBreak, optional, stop, string, try, (<?>), (<|>))
+import Parserka.Parser (Parser, Position, char, curPos, digit, excluding, getParserState, ignore, letter, many0, many1, manyAll, manyBreak, optional, stop, string, try, (<?>), (<|>))
 
 -- Lexer
 
@@ -20,28 +20,30 @@ fileStart :: Parser Char YAMLToken
 fileStart =
   ( do
       state <- getParserState
-      try (string "---") <?> "file starting ---"
+      string "---" <?> "file starting ---"
       return (FileStartToken (curPos state))
   )
 
 keyName :: Parser Char YAMLToken
 keyName = do
   state <- getParserState
-  name <- many1 (letter <|> digit) <?> "key name"
+  name <- many1 (letter <|> digit)
   return (KeyToken (curPos state) name)
+
+-- scalarBool =
 
 scalar :: Parser Char YAMLToken
 scalar = do
   state <- getParserState
-  name <- many1 (letter <|> digit) <?> "scalar name"
+  name <- many1 (letter <|> digit)
   return (DoubleQuoteString (curPos state) name) -- TODO:
 
 keyValue :: Parser Char [YAMLToken]
 keyValue = do
-  key <- keyName <?> "KEY:value"
+  key <- keyName
   char ':'
   spaces
-  val <- (optional (scalar) <?> "key:VALUE")
+  val <- optional (scalar)
   return
     ( [key] ++ case val of
         Just value -> [value]
@@ -59,7 +61,7 @@ blockListItem = do
   char '-'
   spaces
   tokens <- (try keyValue <|> listify scalar)
-  return $ [ItemToken (curPos state)] ++ tokens
+  (return $ [ItemToken (curPos state)] ++ tokens)
 
 fileStartLine :: Parser Char YAMLToken
 fileStartLine = do
@@ -70,8 +72,7 @@ fileStartLine = do
 contentLine :: Parser Char [YAMLToken]
 contentLine =
   do
-    spaces
-    tokens <- ((try blockListItem) <|> keyValue)
+    tokens <- (blockListItem <|> keyValue)
     lineEnd
     return tokens
 
@@ -90,18 +91,18 @@ lineEnd = do spaces; optional comment; (try (do nl; return False) <|> (do stop; 
 yamlTokens :: Parser Char [YAMLToken]
 yamlTokens = do
   tokens <-
-    many1
+    manyAll
       ( do
           st <- fileStartLine
           contents <-
             many1
-              ( try contentLine <|> do
-                  isStop <- lineEnd
-                  if isStop
-                    then manyBreak
-                    else return []
-              )
+              (do spaces; contentLine <|> blank)
           return $ [st] ++ (concat contents)
       )
-  stop
   return $ concat tokens
+  where
+    blank = do
+      isStop <- lineEnd
+      if isStop
+        then manyBreak
+        else return []
