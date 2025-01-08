@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
-module Parserka.Parser (Parser, Position, curPos, char, many1, string, letter, digit, getParserState, (<?>), excluding, many1, many0, (<|>), try, runParserOnString, optional, stop) where
+module Parserka.Parser (Parser, Position, curPos, manyBreak, char, many1, string, letter, digit, getParserState, (<?>), excluding, many1, many0, (<|>), try, runParserOnString, optional, stop) where
 
 import Control.Applicative (Alternative)
 import Data.Char (isAlpha, isDigit)
@@ -147,10 +147,14 @@ stop = Parser $ go
       [] -> Empty (Ok () state (Message (curPos state) [] []))
       (c : cs) -> Empty (Error (Message (curPos state) (show c) ["stop"]))
 
+manyBreak :: Parser i a
+manyBreak = Parser $
+  \state -> Empty (Error (Message (curPos state) "break" []))
+
 try :: Parser i a -> Parser i a
 try p = Parser $
   \state -> case (runParser p state) of
-    Consumed err -> Empty err
+    Consumed (Error err) -> Empty (Error err)
     other -> other
 
 optional :: Parser i a -> Parser i (Maybe a)
@@ -170,6 +174,7 @@ many1 p =
     xs <- (many1 p <|> return [])
     return (x : xs)
 
+many0 :: Parser i a -> Parser i [a]
 many0 p = try (many1 p) <|> return []
 
 identificator = do many1 (letter <|> digit <|> char '_'); stop

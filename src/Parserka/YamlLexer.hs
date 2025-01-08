@@ -1,8 +1,8 @@
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
-module Parserka.YAML (yamlTokens) where
+module Parserka.YamlLexer (yamlTokens) where
 
-import Parserka.Parser (Parser, Position, char, curPos, digit, excluding, getParserState, letter, many0, many1, optional, stop, string, try, (<?>), (<|>))
+import Parserka.Parser (Parser, Position, char, curPos, digit, excluding, getParserState, letter, many0, many1, manyBreak, optional, stop, string, try, (<?>), (<|>))
 
 -- Lexer
 
@@ -48,6 +48,19 @@ keyValue = do
         Nothing -> []
     )
 
+listify :: Parser i a -> Parser i [a]
+listify p = do
+  res <- p
+  return [res]
+
+blockListItem :: Parser Char [YAMLToken]
+blockListItem = do
+  state <- getParserState
+  char '-'
+  spaces
+  tokens <- (try keyValue <|> listify scalar)
+  return $ [ItemToken (curPos state)] ++ tokens
+
 fileStartLine :: Parser Char YAMLToken
 fileStartLine = do
   token <- fileStart
@@ -58,7 +71,7 @@ contentLine :: Parser Char [YAMLToken]
 contentLine =
   do
     spaces
-    tokens <- (keyValue) --- <|> listItem)
+    tokens <- ((try blockListItem) <|> keyValue)
     lineEnd
     return tokens
 
@@ -71,8 +84,8 @@ nl = do char '\n' <?> "new line"; return ()
 spaces :: Parser Char [Char]
 spaces = many0 (char ' ') <?> "possible spaces"
 
-lineEnd :: Parser Char ()
-lineEnd = do spaces; optional comment; (nl <|> stop)
+lineEnd :: Parser Char Bool
+lineEnd = do spaces; optional comment; (try (do nl; return False) <|> (do stop; return True))
 
 yamlTokens :: Parser Char [YAMLToken]
 yamlTokens = do
@@ -80,8 +93,15 @@ yamlTokens = do
     many1
       ( do
           st <- fileStartLine
-          contents <- many1 contentLine
-          return ([st] ++ (concat contents))
+          contents <-
+            many1
+              ( try contentLine <|> do
+                  isStop <- lineEnd
+                  if isStop
+                    then manyBreak
+                    else return []
+              )
+          return $ [st] ++ (concat contents)
       )
   stop
   return $ concat tokens
