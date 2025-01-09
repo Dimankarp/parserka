@@ -3,6 +3,7 @@ module Program (Options (..), program) where
 import Parserka.Parser
 import Parserka.YAML.Lexer
 import Parserka.YAML.Parser (runParserOnTokens)
+import Parserka.Pretty
 
 data Options = Options
   { filepath :: String
@@ -19,7 +20,7 @@ program (Options f) = do
     Consumed (Error msg) -> parseError msg
     Empty (Error msg) -> parseError msg
   where
-    parseError msg = print $ "Failed because of:" ++ (show msg)
+    parseError msg = putStrLn  $ "Failed because of:\n" ++ (pretty msg)
     tokenSuccess tokens = do
       let res = runParserOnTokens tokens
       case res of 
@@ -28,7 +29,7 @@ program (Options f) = do
             Consumed (Error msg) -> parseError msg
             Empty (Error msg) -> parseError msg
       where 
-        parseSuccess vals = print vals 
+        parseSuccess vals = putStrLn  $ concat $ map (flip prettyYAML 0) vals 
       
 
 

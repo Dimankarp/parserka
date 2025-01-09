@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
-module Parserka.Parser (Parser, Position (..), Consumed (..), State (..), Reply (..), perror, runParser, curPos, satisfy, ignore, manyAll, manyBreak, char, many1, string, letter, digit, getParserState, (<?>), excluding, many1, many0, (<|>), try, runParserOnString, optional, stop) where
+module Parserka.Parser (Parser, Position (..), Consumed (..), State (..), Reply (..), Message(..), perror, runParser, curPos, satisfy, ignore, manyAll, manyBreak, char, many1, string, letter, digit, getParserState, (<?>), excluding, many1, many0, (<|>), try, runParserOnString, optional, stop) where
 
 import Control.Applicative (Alternative)
 import Data.Char (isAlpha, isDigit)

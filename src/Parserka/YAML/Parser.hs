@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
-module Parserka.YAML.Parser (parseYamlFromString, runParserOnTokens) where
+module Parserka.YAML.Parser (YAMLValue(..), parseYamlFromString, runParserOnTokens) where
 
 import Data.Map as Map
 import Parserka.Parser
