@@ -165,7 +165,7 @@ yamlTokens = do
           st <- fileStartLine
           contents <-
             many1
-              (do spaces; contentLine <|> blank)
+              (do spaces; try $ contentLine <|> blank)
           return $ [st] ++ (concat contents)
       )
   return $ concat tokens

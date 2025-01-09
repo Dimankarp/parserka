@@ -93,13 +93,13 @@ object ide = (scalarValue <|> (try $ dictionary ide) <|> (try $ blockStyleList i
 blockStyleList :: Int -> Parser YAMLToken YAMLValue
 blockStyleList ide =
   do
-    (ItemToken p) <- nested ide tokenItem
+    (ItemToken p) <- nested ide $ try  tokenItem
     let curident = identPos p
     val <- object (curident)
     items <-
       many0
         ( do
-            (ItemToken _) <- nested ide tokenItem
+            (ItemToken _) <- follows curident $ try tokenItem
             v <- object (curident)
             return (v)
         )
@@ -108,13 +108,13 @@ blockStyleList ide =
 dictionary :: Int -> Parser YAMLToken YAMLValue
 dictionary ide =
   do
-    (KeyToken p k) <- nested ide tokenKey
+    (KeyToken p k) <- nested ide  $ try tokenKey
     let curident = identPos p
     val <- object (curident)
     pairs <-
       many0
         ( do
-            (KeyToken _ nk) <- follows curident tokenKey
+            (KeyToken _ nk) <- follows curident $ try  tokenKey
             v <- object (curident)
             return (StringValue nk, v)
         )
@@ -133,8 +133,6 @@ yamlFiles = do
 parseYamlFromString :: String -> Parserka.Parser.Consumed YAMLToken [YAMLValue]
 parseYamlFromString s =
   let res = runParserOnString yamlTokens s
-   in case trace (show res) res of
+   in case res of
         Consumed (Ok tokens _ _) -> runParser yamlFiles (State tokens (Position 0 1))
-        Consumed (Error msg) -> error (show msg)
-        Empty (Error msg) -> error (show msg)
         other -> error (show other)
