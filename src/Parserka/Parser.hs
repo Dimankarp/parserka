@@ -1,20 +1,22 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
-module Parserka.Parser (Parser, Position, curPos, ignore, manyAll, manyBreak, char, many1, string, letter, digit, getParserState, (<?>), excluding, many1, many0, (<|>), try, runParserOnString, optional, stop) where
+module Parserka.Parser (Parser, Position (..), Consumed (..), State (..), Reply (..), perror, runParser, curPos, satisfy, ignore, manyAll, manyBreak, char, many1, string, letter, digit, getParserState, (<?>), excluding, many1, many0, (<|>), try, runParserOnString, optional, stop) where
 
 import Control.Applicative (Alternative)
 import Data.Char (isAlpha, isDigit)
+import Data.Data (Data)
 import GHC.Base (Alternative (..))
 
-data Position = Position {col :: Int, line :: Int} deriving (Show)
+data Position = Position {col :: Int, line :: Int} deriving (Eq, Show, Data)
 
-data Message = Message {pos :: Position, unexpected :: String, expected :: [String]} deriving (Show)
+data Message = Message {pos :: Position, unexpected :: String, expected :: [String]} deriving (Eq, Show)
 
-data State i = State {input :: [i], curPos :: Position} deriving (Show)
+data State i = State {input :: [i], curPos :: Position} deriving (Eq, Show)
 
-data Reply i a = Ok a (State i) (Message) | Error (Message) deriving (Show)
+data Reply i a = Ok a (State i) (Message) | Error (Message) deriving (Eq, Show)
 
-data Consumed i a = Consumed (Reply i a) | Empty (Reply i a) deriving (Show)
+data Consumed i a = Consumed (Reply i a) | Empty (Reply i a) deriving (Eq, Show)
 
 newtype Parser i a = Parser
   {runParser :: State i -> Consumed i a}
@@ -32,7 +34,7 @@ instance Monad (Parser i) where
       ( \state -> case (runParser p state) of
           Empty r1 ->
             case (r1) of
-              Ok x state1 _ ->(runParser (f x) state1) 
+              Ok x state1 _ -> (runParser (f x) state1)
               Error msg -> Empty (Error msg)
           Consumed r1 ->
             Consumed
@@ -44,6 +46,9 @@ instance Monad (Parser i) where
               )
       )
   return = pure
+
+instance MonadFail (Parser i) where
+  fail _ = Parser $ \s -> Consumed (Error (Message (curPos s) "unexpected fail" []))
 
 instance Alternative (Parser i) where
   p <|> q =
@@ -135,7 +140,6 @@ string' (i : is) =
       string is
   )
 
-
 idPart :: Parser Char Char
 idPart = letter <|> digit
 
@@ -162,8 +166,8 @@ try p = Parser $
     Consumed (Error err) -> Empty (Error err)
     other -> other
 
-error :: String -> Parser i a
-error s = Parser $ \state -> Empty (Error (Message (curPos state) s []))
+perror :: String -> Parser i a
+perror s = Parser $ \state -> Empty (Error (Message (curPos state) s []))
 
 isInputEnd :: Parser i Bool
 isInputEnd =
@@ -199,8 +203,6 @@ many1 p =
 
 many0 :: Parser i a -> Parser i [a]
 many0 p = try (many1 p) <|> return []
-
-
 
 identificator :: Parser Char ()
 identificator = do many1 (letter <|> digit <|> char '_'); stop

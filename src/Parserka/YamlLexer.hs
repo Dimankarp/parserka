@@ -1,8 +1,11 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
-module Parserka.YamlLexer (yamlTokens) where
+module Parserka.YamlLexer (yamlTokens, YAMLToken (..), sourcePos, sameToken) where
 
-import Parserka.Parser (Parser, Position, char, curPos, digit, excluding, getParserState, ignore, letter, many0, many1, manyAll, manyBreak, optional, stop, string, try, (<?>), (<|>))
+import Data.Data (Constr, Data (toConstr), Typeable)
+import Data.Function (on)
+import Parserka.Parser
 
 -- Lexer
 
@@ -11,10 +14,22 @@ data YAMLToken
   | IntegerToken Position Integer
   | DoubleToken Position Double
   | BoolToken Position Bool
-  | DoubleQuoteString Position String
+  | DoubleQuoteStringToken Position String
   | KeyToken Position String
   | ItemToken Position
-  deriving (Show)
+  deriving (Eq, Show, Typeable, Data)
+
+sameToken :: YAMLToken -> YAMLToken -> Bool
+sameToken = (==) `on` toConstr
+
+sourcePos :: YAMLToken -> Position
+sourcePos (FileStartToken p) = p
+sourcePos (IntegerToken p _) = p
+sourcePos (DoubleToken p _) = p
+sourcePos (BoolToken p _) = p
+sourcePos (DoubleQuoteStringToken p _) = p
+sourcePos (KeyToken p _) = p
+sourcePos (ItemToken p) = p
 
 fileStart :: Parser Char YAMLToken
 fileStart =
@@ -60,6 +75,7 @@ scalarInteger =
         )
     <?> "integer number"
 
+scalarDouble :: Parser Char YAMLToken
 scalarDouble =
   do
     state <- getParserState
@@ -84,7 +100,7 @@ scalarDQuoted =
     char '"'
     str <- many0 $ excluding ['"']
     char '"'
-    return $ DoubleQuoteString (curPos state) str
+    return $ DoubleQuoteStringToken (curPos state) str
     <?> "double qutoed string"
 
 scalar :: Parser Char YAMLToken
