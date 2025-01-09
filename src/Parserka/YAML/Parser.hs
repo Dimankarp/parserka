@@ -1,11 +1,10 @@
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
-module Parserka.YamlParser (parseYamlFromString) where
+module Parserka.YAML.Parser (parseYamlFromString, runParserOnTokens) where
 
 import Data.Map as Map
 import Parserka.Parser
-import Parserka.YamlLexer
-import Debug.Trace (trace)
+import Parserka.YAML.Lexer
 
 data YAMLValue
   = StringValue String
@@ -93,7 +92,7 @@ object ide = (scalarValue <|> (try $ dictionary ide) <|> (try $ blockStyleList i
 blockStyleList :: Int -> Parser YAMLToken YAMLValue
 blockStyleList ide =
   do
-    (ItemToken p) <- nested ide $ try  tokenItem
+    (ItemToken p) <- nested ide $ try tokenItem
     let curident = identPos p
     val <- object (curident)
     items <-
@@ -108,13 +107,13 @@ blockStyleList ide =
 dictionary :: Int -> Parser YAMLToken YAMLValue
 dictionary ide =
   do
-    (KeyToken p k) <- nested ide  $ try tokenKey
+    (KeyToken p k) <- nested ide $ try tokenKey
     let curident = identPos p
     val <- object (curident)
     pairs <-
       many0
         ( do
-            (KeyToken _ nk) <- follows curident $ try  tokenKey
+            (KeyToken _ nk) <- follows curident $ try tokenKey
             v <- object (curident)
             return (StringValue nk, v)
         )
@@ -136,3 +135,6 @@ parseYamlFromString s =
    in case res of
         Consumed (Ok tokens _ _) -> runParser yamlFiles (State tokens (Position 0 1))
         other -> error (show other)
+
+runParserOnTokens :: [YAMLToken] -> Consumed YAMLToken [YAMLValue]
+runParserOnTokens tokens = runParser yamlFiles (State tokens (Position 0 1))

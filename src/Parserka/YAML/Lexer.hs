@@ -1,9 +1,9 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
-module Parserka.YamlLexer (yamlTokens, YAMLToken (..), sourcePos, sameToken) where
+module Parserka.YAML.Lexer (yamlTokens, YAMLToken (..), sourcePos, sameToken) where
 
-import Data.Data (Constr, Data (toConstr), Typeable)
+import Data.Data (Data (toConstr), Typeable)
 import Data.Function (on)
 import Parserka.Parser
 
