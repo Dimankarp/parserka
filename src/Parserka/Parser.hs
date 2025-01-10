@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
-module Parserka.Parser (Parser, Position (..), Consumed (..), State (..), Reply (..), Message(..), perror, runParser, curPos, satisfy, ignore, manyAll, manyBreak, char, many1, string, letter, digit, getParserState, (<?>), excluding, many1, many0, (<|>), try, runParserOnString, optional, stop) where
+module Parserka.Parser (Parser, Position (..), Consumed (..), State (..), Reply (..), Message (..), perror, runParser, curPos, satisfy, ignore, manyAll, manyBreak, char, many1, string, letter, digit, getParserState, (<?>), excluding, many1, many0, (<|>), try, runParserOnString, optional, stop) where
 
 import Control.Applicative (Alternative)
 import Data.Char (isAlpha, isDigit)
@@ -202,7 +202,13 @@ many1 p =
     return (x : xs)
 
 many0 :: Parser i a -> Parser i [a]
-many0 p = try (many1 p) <|> return []
+many0 p = do
+  xopt <- optional p
+  case xopt of
+    Nothing -> return []
+    Just x -> do
+      xs <- (many1 p <|> return [])
+      return (x : xs)
 
 identificator :: Parser Char ()
 identificator = do many1 (letter <|> digit <|> char '_'); stop

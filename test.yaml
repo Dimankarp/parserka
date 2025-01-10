@@ -10,7 +10,6 @@ MD035: false # Horizontal rule style
 MD033: 
   - "br"
   - "div"
-  # allowed_elements: ["br", "div"]
 
 # need to be removed
 MD045: false # Images should have alternate text (alt text)

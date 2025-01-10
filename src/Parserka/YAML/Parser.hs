@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
-module Parserka.YAML.Parser (YAMLValue(..), parseYamlFromString, runParserOnTokens) where
+module Parserka.YAML.Parser (YAMLValue (..), parseYamlFromString, runParserOnTokens) where
 
 import Data.Map as Map
 import Parserka.Parser
@@ -87,18 +87,18 @@ scalarValue =
         )
 
 object :: Int -> Parser YAMLToken YAMLValue
-object ide = (scalarValue <|> (try $ dictionary ide) <|> (try $ blockStyleList ide) <|> return NullValue) <?> "field value"
+object ide = (scalarValue <|> (dictionary ide) <|> (blockStyleList ide) <|> return NullValue)
 
 blockStyleList :: Int -> Parser YAMLToken YAMLValue
 blockStyleList ide =
   do
-    (ItemToken p) <- nested ide $ try tokenItem
+    (ItemToken p) <- nested ide $ tokenItem
     let curident = identPos p
     val <- object (curident)
     items <-
       many0
         ( do
-            (ItemToken _) <- follows curident $ try tokenItem
+            (ItemToken _) <- try $ follows curident $ tokenItem
             v <- object (curident)
             return (v)
         )
@@ -107,13 +107,13 @@ blockStyleList ide =
 dictionary :: Int -> Parser YAMLToken YAMLValue
 dictionary ide =
   do
-    (KeyToken p k) <- nested ide $ try tokenKey
+    (KeyToken p k) <- nested ide $ tokenKey
     let curident = identPos p
     val <- object (curident)
     pairs <-
       many0
         ( do
-            (KeyToken _ nk) <- follows curident $ try tokenKey
+            (KeyToken _ nk) <- try $ follows curident $ tokenKey
             v <- object (curident)
             return (StringValue nk, v)
         )

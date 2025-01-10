@@ -30,7 +30,7 @@ prettyYAML (DoubleValue v) ident =  show v
 prettyYAML (NullValue) ident =  "null"
 prettyYAML (ListValue vals) ident =
   "[\n"
-    <> (concat $ fmap (\i -> (replicate (ident + 1) ' ') <> prettyYAML i (0) <> ",\n") vals)
+    <> (concat $ fmap (\i -> (replicate (ident + 1) ' ') <> prettyYAML i (ident + 1) <> ",\n") vals)
     <> (replicate ident ' ')
     <> "]\n"
 prettyYAML (DictionaryValue m) ident =
@@ -39,4 +39,4 @@ prettyYAML (DictionaryValue m) ident =
     <> (replicate ident ' ')
     <> "}\n"
   where
-    prettyMap = foldlWithKey (\a k v -> a <> ((replicate (ident + 1) ' ') <> (prettyYAML k 0) <> ";" <> prettyYAML v (ident + 1 + (length (prettyYAML k 0)) + 1) <> "\n")) "" m
+    prettyMap = foldlWithKey (\a k v -> a <> ((replicate (ident + 1) ' ') <> (prettyYAML k (ident + 1)) <> ";" <> prettyYAML v (ident + 1 + (length (prettyYAML k 0)) + 1) <> "\n")) "" m
